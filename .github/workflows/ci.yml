@@ -1,14 +1,12 @@
-name: CI/CD - ETL Supermercado
+name: CI - Validar ETL Supermercado
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main ]
 
 jobs:
-
-  # ─── Validar estructura y sintaxis ───
   validar:
     runs-on: ubuntu-latest
     steps:
@@ -29,112 +27,10 @@ jobs:
 
       - name: Verificar estructura de carpetas
         run: |
-          echo "Verificando carpetas del proyecto..."
+          echo "Verificando carpetas..."
           for d in prepamb proceso security reversion datasets dashboard evidencias; do
             [ -d "$d" ] && echo "✔ $d/" || echo "✘ Falta: $d"
           done
 
-  # ─── Ejecutar pipeline en Databricks ───
-  ejecutar-pipeline:
-    runs-on: ubuntu-latest
-    needs: validar
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
-
-      - name: Instalar Databricks CLI
-        run: pip install databricks-cli
-
-      - name: Configurar Databricks CLI
-        run: |
-          databricks configure --token <<EOF
-          ${{ secrets.DATABRICKS_HOST }}
-          ${{ secrets.DATABRICKS_TOKEN }}
-          EOF
-
-      - name: Paso 1 - Preparación de ambiente (prepamb)
-        run: |
-          databricks runs submit --wait --json '{
-            "run_name": "CI - prepamb",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/Users/fyamile.0428@gmail.com/etl-supermercado-databricks/prepamb/preparacion_ambiente",
-              "base_parameters": {
-                "catalogo": "etl_supermercado"
-              }
-            }
-          }'
-
-      - name: Paso 2 - Ingesta Orders (Extract)
-        run: |
-          databricks runs submit --wait --json '{
-            "run_name": "CI - ingest_orders",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/Users/fyamile.0428@gmail.com/etl-supermercado-databricks/proceso/ingest_orders",
-              "base_parameters": {
-                "catalogo": "etl_supermercado",
-                "esquema": "bronze"
-              }
-            }
-          }'
-
-      - name: Paso 3 - Ingesta Productos (Extract)
-        run: |
-          databricks runs submit --wait --json '{
-            "run_name": "CI - ingest_productos",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/Users/fyamile.0428@gmail.com/etl-supermercado-databricks/proceso/ingest_productos",
-              "base_parameters": {
-                "catalogo": "etl_supermercado",
-                "esquema": "bronze"
-              }
-            }
-          }'
-
-      - name: Paso 4 - Transformación Bronze → Silver
-        run: |
-          databricks runs submit --wait --json '{
-            "run_name": "CI - transform",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/Users/fyamile.0428@gmail.com/etl-supermercado-databricks/proceso/transform",
-              "base_parameters": {
-                "catalogo": "etl_supermercado",
-                "esquema_source": "bronze",
-                "esquema_sink": "silver"
-              }
-            }
-          }'
-
-      - name: Paso 5 - Carga Silver → Golden
-        run: |
-          databricks runs submit --wait --json '{
-            "run_name": "CI - load",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/Users/fyamile.0428@gmail.com/etl-supermercado-databricks/proceso/load",
-              "base_parameters": {
-                "catalogo": "etl_supermercado",
-                "esquema_source": "silver",
-                "esquema_sink": "golden"
-              }
-            }
-          }'
-
-      - name: Paso 6 - Grants (Security)
-        run: |
-          databricks runs submit --wait --json '{
-            "run_name": "CI - grants",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/Users/fyamile.0428@gmail.com/etl-supermercado-databricks/security/grants",
-              "base_parameters": {
-                "catalogo": "etl_supermercado"
-              }
-            }
-          }'
-
-      - name: Pipeline completado
-        run: echo "ETL Supermercado ejecutado correctamente desde CI/CD"
+      - name: Pipeline validado
+        run: echo "✔ ETL Supermercado validado correctamente"
