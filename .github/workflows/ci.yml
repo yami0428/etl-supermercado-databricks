@@ -1,0 +1,18 @@
+name: CI - Validar ETL Supermercado
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Verificar estructura
+        run: |
+          echo "Verificando carpetas..."
+          for d in prepamb proceso security reversion datasets; do
+            [ -d "$d" ] && echo "OK $d" || echo "FALTA $d"
+          done
